@@ -178,7 +178,7 @@ if __name__ == "__main__":
     goal_steps = 500
     score_requirement = -200
 
-    training_data = initial_population(initial_games, goal_steps, score_requirement)
+    training_data = initial_population(initial_games, goal_steps, score_requirement, save=True)
     model = train_model(training_data)
     input("Press enter to continue...")
     run_model(model, goal_steps)

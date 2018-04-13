@@ -89,7 +89,7 @@ def initial_population():
 
     # just in case you wanted to reference later
     training_data_save = np.array(training_data)
-    np.save('saved.npy', training_data_save)
+    np.save('cart_pole_saved.npy', training_data_save)
 
     # some stats here, to further illustrate the neural network magic!
     print('Average accepted score:', mean(accepted_scores))
