@@ -6,13 +6,11 @@ from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
 from statistics import median, mean
 from collections import Counter
+import threading
 
 LR = 1e-3  # Learning Rate
 env = gym.make("MountainCar-v0")
 env.reset()  # Set the environment to a known reset state
-goal_steps = 200
-score_requirement = -1*goal_steps  # Score goes down by 1 for every step taken without winning
-initial_games = 10000
 
 
 def some_random_games_first(num_games=5, frames_per_game=200):
@@ -23,7 +21,7 @@ def some_random_games_first(num_games=5, frames_per_game=200):
     # Each of these is its own game.
     for episode in range(num_games):
         env.reset()
-        # this is each frame, up to 200...but we wont make it that far.
+        # this is each frame, up to the number of frames specified
         for t in range(frames_per_game):
             # This will display the environment
             # Only display if you really want to see it.
@@ -31,7 +29,7 @@ def some_random_games_first(num_games=5, frames_per_game=200):
             env.render()
 
             # This will just create a sample action in any environment.
-            # In this environment, the action can be 0 or 1, which is left or right
+            # In this environment, the action can be 0, 1, or 2 (Push left, no push, push right)
             action = env.action_space.sample()
 
             # This executes an action in the environment
@@ -42,19 +40,51 @@ def some_random_games_first(num_games=5, frames_per_game=200):
                 break
 
 
+def human_agent_render_thread(stop_event):
+    while not stop_event.is_set():
+        env.render()
+
+
+def human_agent():
+    done = False
+    env.reset()
+
+    stop_event = threading.Event()  # Event used to gracefully end meter read thread
+    render_thread = threading.Thread(target=human_agent_render_thread, args=[stop_event])
+    render_thread.start()
+
+    last_action = 1
+    score = 0
+    while not done:
+        choice = input("Choose an action (0: LEFT, 1: NONE, 2: RIGHT): ")
+        try:
+            action = int(choice)
+            last_action = action
+        except ValueError:
+            action = last_action
+        except KeyboardInterrupt:
+            stop_event.set()
+        observation, reward, done, _ = env.step(action)
+        score += reward
+        print("Observation: %r" % observation)
+    stop_event.set()
+    render_thread.join(3)
+    print("Score: %d" % score)
+
+
 def initial_population(initial_games=10000, goal_steps=500, score_requirement=-200, num_possible_actions=3, save=False):
-    # [OBS, MOVES]
+    # [OBSERVATION, MOVES]
     training_data = []
     scores = []  # All scores
-    accepted_scores = []  # Scores that met our threshold
-    for _ in range(initial_games):  # iterate through however many games we want:
+    accepted_scores = []  # Scores that met the score requirement
+    for _ in range(initial_games):  # iterate through however many games specified in initial games
         score = 0
         game_memory = []  # Moves specifically from this environment
-        prev_observation = []  # previous observation that we saw
+        prev_observation = []  # previous observations that we saw
         for _ in range(goal_steps):  # Run for "goal_steps" frames
             # choose random action (0: Push left, 1: No push, 2: Push right)
             action = random.randrange(0, num_possible_actions)
-            observation, reward, done, info = env.step(action)  # Run the action, retrieve data
+            observation, reward, done, _ = env.step(action)  # Run the action, retrieve data
 
             # The observation is returned FROM the action
             # Store the previous observation here, pairing
@@ -63,7 +93,7 @@ def initial_population(initial_games=10000, goal_steps=500, score_requirement=-2
                 game_memory.append([prev_observation, action])
             prev_observation = observation
             score += reward
-            if done:
+            if done:  # Mountain car reached the flag position or better
                 break
 
         # IF our score is higher than our threshold, we'd like to save every move we made
@@ -167,18 +197,24 @@ def run_model(model, goal_steps=500, num_actions=3):
         scores.append(score)
 
     print('Average Score:', sum(scores) / len(scores))
-    print('choice 1:{}  choice 0:{}'.format(choices.count(1) / len(choices), choices.count(0) / len(choices)))
+    print('choice 2:{}  choice 1:{}  choice 0:{}'.format(choices.count(2) / len(choices),
+                                                         choices.count(1) / len(choices),
+                                                         choices.count(0) / len(choices)))
     print(score_requirement)
 
 
-# Note: Setting goal steps to 200 and the score req caused the cart to not care what it did
+# Note: Setting goal steps to 200 and the score req to -200 caused the cart to not care what it did
 # because it ALWAYS reached -200. Goal steps must ALWAYS be greater than the abs val of score req.
 if __name__ == "__main__":
-    initial_games = 10000
-    goal_steps = 500
-    score_requirement = -200
+    #initial_games = 10000
+    #goal_steps = 1000
+    #score_requirement = -200
 
-    training_data = initial_population(initial_games, goal_steps, score_requirement, save=True)
-    model = train_model(training_data)
-    input("Press enter to continue...")
-    run_model(model, goal_steps)
+    # Create training data from an initial population of games played by random agents
+    #training_data = initial_population(initial_games, goal_steps, score_requirement, save=True)
+
+    # Train a model on the training data
+    #model = train_model(training_data)
+    #input("Press enter to continue...")
+    #run_model(model, goal_steps)
+    human_agent()
