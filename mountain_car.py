@@ -206,15 +206,15 @@ def run_model(model, goal_steps=500, num_actions=3):
 # Note: Setting goal steps to 200 and the score req to -200 caused the cart to not care what it did
 # because it ALWAYS reached -200. Goal steps must ALWAYS be greater than the abs val of score req.
 if __name__ == "__main__":
-    #initial_games = 10000
-    #goal_steps = 1000
-    #score_requirement = -200
+    initial_games = 10000
+    goal_steps = 1000
+    score_requirement = -200
 
     # Create training data from an initial population of games played by random agents
-    #training_data = initial_population(initial_games, goal_steps, score_requirement, save=True)
+    training_data = initial_population(initial_games, goal_steps, score_requirement, save=True)
 
     # Train a model on the training data
-    #model = train_model(training_data)
-    #input("Press enter to continue...")
-    #run_model(model, goal_steps)
-    human_agent()
+    model = train_model(training_data)
+    input("Press enter to continue...")
+    run_model(model, goal_steps)
+    #human_agent()
